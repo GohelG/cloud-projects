@@ -127,7 +127,7 @@ The thing that differs between scenarios is the **trust policy `Principal`** —
 Do these in order. Step 1 builds the mental model; Steps 2–7 are the six scenarios; Step 8 cleans up.
 
 1. [IAM Foundations — Users, Policies, Roles, and Trust](./steps/01-iam-foundations.md)
-2. [A Person Borrows a Role from the AWS CLI](./steps/02-role-assumed-by-user-cli.md)
+2. [IAM User Assumes a Role via the AWS CLI](./steps/02-role-assumed-by-user-cli.md)
 3. [Service Role — Lambda Execution Role](./steps/03-service-role-lambda.md)
 4. [Service Role — EC2 Instance Profile](./steps/04-service-role-ec2-instance-profile.md)
 5. [Cross-Account Role (with a secret External ID)](./steps/05-cross-account-role.md)

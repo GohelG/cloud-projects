@@ -218,5 +218,5 @@ Save the `AccessKeyId` and `SecretAccessKey` from the output.
 
 ---
 
-Next: [Step 2 — A Person Borrows a Role from the AWS CLI](./02-role-assumed-by-user-cli.md)
+Next: [Step 2 — IAM User Assumes a Role via the AWS CLI](./02-role-assumed-by-user-cli.md)
 </content>

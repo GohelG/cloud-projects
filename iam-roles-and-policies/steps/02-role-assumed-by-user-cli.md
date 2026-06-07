@@ -1,4 +1,4 @@
-# Step 2 — A Person Borrows a Role from the AWS CLI
+# Step 2 — IAM User Assumes a Role via the AWS CLI
 
 ## Why This Matters
 
