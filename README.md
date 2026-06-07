@@ -10,6 +10,12 @@ A collection of hands-on AWS projects designed for students to build real-world 
 |---------|----------|-------------|
 | [IAM Roles & Policies](./iam-roles-and-policies/README.md) | IAM, STS, Lambda, EC2, ECS | Master trust vs. permission policies by building six real-world roles: user-assumed via CLI/STS, Lambda/EC2/ECS service roles, cross-account with External ID, and GitHub OIDC federation |
 
+### Storage & CDN
+
+| Project | Services | Description |
+|---------|----------|-------------|
+| [S3 + CloudFront Static Website](./s3-cloudfront-static-website/README.md) | S3, CloudFront, OAC, IAM | Host a static site in a private S3 bucket served globally over HTTPS via CloudFront; learn origin access control, default root object, custom error pages, caching, and cache invalidation |
+
 ### Messaging & Queuing
 
 | Project | Services | Description |
