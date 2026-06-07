@@ -4,6 +4,12 @@ A collection of hands-on AWS projects designed for students to build real-world 
 
 ## Projects
 
+### IAM & Security
+
+| Project | Services | Description |
+|---------|----------|-------------|
+| [IAM Roles & Policies](./iam-roles-and-policies/README.md) | IAM, STS, Lambda, EC2, ECS | Master trust vs. permission policies by building six real-world roles: user-assumed via CLI/STS, Lambda/EC2/ECS service roles, cross-account with External ID, and GitHub OIDC federation |
+
 ### Messaging & Queuing
 
 | Project | Services | Description |
