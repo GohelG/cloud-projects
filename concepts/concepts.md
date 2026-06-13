@@ -5,8 +5,7 @@
 This document explains the **design concepts** every AWS architecture is judged on:
 **High Availability, Fault Tolerance, Scalability/Elasticity, Security, and Cost
 Optimization** — plus the service categories that implement them (compute, networking,
-load balancing, data, serverless, storage, monitoring). Where [`fundamentals.md`](fundamentals.md)
-covers *what AWS is*, this covers *the ideas you combine to design well*.
+load balancing, data, serverless, storage, monitoring).
 
 ## Why
 
