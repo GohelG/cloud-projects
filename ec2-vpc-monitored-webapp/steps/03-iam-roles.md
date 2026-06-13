@@ -52,6 +52,26 @@ Before any GitHub repo can assume an AWS role, AWS has to be told to **trust Git
 token issuer**. That's what an **IAM OIDC identity provider** is: a one-time registration
 that says "I trust tokens signed by `token.actions.githubusercontent.com`."
 
+> **What is OIDC? (plain terms, then technical)**
+>
+> **In plain terms:** OIDC lets two systems that *don't share a password* trust each other
+> through a third party they both trust. Think of a passport: a hotel doesn't issue you a
+> private keycard to carry forever — it reads the passport your government already issued
+> and verifies it's genuine. Here, **GitHub is the passport office**, your workflow gets a
+> fresh "passport" on every run, and **AWS is the hotel** that reads it, checks it really
+> came from GitHub *and* belongs to your repo, and lets it in. No permanent AWS key is ever
+> stored in GitHub — so there's nothing sitting around to leak.
+>
+> **Technically:** OIDC (**OpenID Connect**) is an identity layer on top of OAuth 2.0.
+> GitHub's token service mints a signed **JWT** (JSON Web Token) per workflow run, carrying
+> *claims* such as `iss` (issuer), `aud` (audience), and `sub` (subject = `repo:ORG/REPO:...`).
+> The workflow calls **`sts:AssumeRoleWithWebIdentity`** with that JWT; AWS verifies the
+> signature against the registered **OIDC identity provider**, matches the `aud`/`sub`
+> claims against this role's trust policy (3.5), and returns **temporary** credentials
+> (valid ~1 hour). The provider you create below is the "we trust this passport office"
+> registration. The original deep-dive lives in the foundational
+> [iam-roles-and-policies → Step 7](../../iam-roles-and-policies/steps/07-federated-oidc-github-actions.md).
+
 1. **IAM → Identity providers → Add provider**.
 
    | Field | Value |

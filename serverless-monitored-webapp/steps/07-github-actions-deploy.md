@@ -6,6 +6,15 @@ project, the workflow authenticates with **GitHub OIDC** — no stored AWS keys.
 
 The sample workflow is `.github/workflows/deploy.yml`. This step creates the AWS side.
 
+> **New to OIDC?** OIDC (**OpenID Connect**) lets GitHub and AWS trust each other *without
+> a shared password*. On every workflow run, GitHub mints a short-lived signed token — a
+> "passport" that proves *which repo and branch* is calling — and AWS trades it for
+> temporary credentials after checking it. So no permanent AWS key is stored in GitHub to
+> leak. Full conceptual walkthrough: the EC2 project's
+> [Step 3 — OIDC trust relationship](../../ec2-vpc-monitored-webapp/steps/03-iam-roles.md#35-anatomy-of-the-oidc-trust-relationship)
+> and the foundational
+> [iam-roles-and-policies → Step 7](../../iam-roles-and-policies/steps/07-federated-oidc-github-actions.md).
+
 ---
 
 ## 7.1 The Pipeline at a Glance

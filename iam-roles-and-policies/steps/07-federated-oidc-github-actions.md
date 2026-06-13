@@ -8,6 +8,8 @@ Every role so far was borrowed by something *inside* AWS (a user or a service). 
 
 **The simple idea:** instead of giving GitHub a *key*, you teach AWS to *recognize GitHub's ID*. It's like a nightclub that accepts your passport (issued by a trusted government) instead of making you carry a special membership card that could be copied.
 
+**What does "OIDC" actually stand for?** **OpenID Connect** — an industry-standard identity protocol built on top of OAuth 2.0 (the same family that powers "Sign in with Google"). The "ID" GitHub hands over is a signed **JWT** (JSON Web Token): a small, tamper-evident chunk of JSON that says *who* is calling (which repo, which branch) and *who it's for* (AWS). AWS verifies the signature and reads those facts — called **claims** — to decide whether to let the caller in.
+
 > **Technical terms in this step:** **OIDC federation**, the **IAM OIDC identity provider**, a **federated principal** (`Federated:` in the trust policy), the **`sts:AssumeRoleWithWebIdentity`** call (note: *not* plain `AssumeRole`), and the JWT claim conditions **`:aud`** (audience) and **`:sub`** (subject = repo + branch). "Passport" = **OIDC token (JWT)**; "the issuing government" = **the OIDC provider**. See the [glossary](../README.md#plain-word--technical-term).
 >
 > **Cross-reference:** this role pushes images to ECR for [`ecs-fargate-advanced`](../../ecs-fargate-advanced) — it's how you'd wire up CI/CD without storing AWS keys in GitHub.

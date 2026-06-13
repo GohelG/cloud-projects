@@ -20,7 +20,7 @@ By the end you will understand:
 - How serverless metrics differ: **Invocations, Errors, Duration, Throttles** vs CPU/memory
 - How to alarm on Lambda **errors** and **p95 duration** and route to **SNS** email
 - How **CloudTrail** audits a serverless deployment just the same
-- How to deploy with **GitHub Actions → OIDC → `update-function-code`**
+- How to deploy with **GitHub Actions → OIDC → `update-function-code`** — using **OIDC (OpenID Connect)** so GitHub authenticates to AWS with short-lived tokens, no stored keys
 
 ---
 
@@ -28,22 +28,40 @@ By the end you will understand:
 
 ```mermaid
 flowchart TD
-    User["Internet User<br/>(browser)"]
+    Visitor["Internet Visitor<br/>(browser)"]
+    Operator["You — operator / on-call<br/>(receives alert emails)"]
 
-    subgraph AWS["Your AWS Account — us-east-1"]
-      APIGW["API Gateway (HTTP API)<br/>routes: / /health /api/info /api/load<br/>auto-scaling, HTTPS by default"]
-      L["AWS Lambda: serverless-webapp<br/>python3.14 handler<br/>scales 0 → N automatically"]
-      CW["CloudWatch<br/>Invocations · Errors · Duration<br/>alarms · dashboard · logs"]
-      SNS["SNS topic<br/>serverless-webapp-alerts → your email"]
-      CT["CloudTrail<br/>account-wide API audit → S3"]
+    subgraph AWS["Your AWS Account — us-east-1 · no VPC, no servers to manage"]
+      direction TB
+      APIGW["API Gateway — HTTP API<br/>public HTTPS endpoint<br/>routes: / · /health · /api/info · /api/load"]
+      L["AWS Lambda — serverless-webapp<br/>python3.14 handler · scales 0 → N"]
+
+      subgraph OBS["Observability &amp; Audit"]
+        direction LR
+        CW["CloudWatch<br/>metrics: Invocations · Errors · Duration<br/>logs · alarms · dashboard"]
+        SNS["SNS topic<br/>serverless-webapp-alerts"]
+        CT["CloudTrail → S3<br/>records every control-plane<br/>API call (deploys, config changes)"]
+      end
     end
 
-    User -->|HTTPS| APIGW -->|invoke| L
-    L -->|metrics + logs| CW
-    CW -->|errors / slow alarm| SNS
-    SNS -->|email| User
-    CT -.->|records every API call| AWS
+    %% request / response cycle
+    Visitor -->|"1 · HTTPS request"| APIGW
+    APIGW -->|"2 · invoke"| L
+    L -->|"3 · JSON response"| APIGW
+    APIGW -->|"4 · HTTPS response"| Visitor
+
+    %% monitoring & alerting
+    L -.->|"emit metrics + logs"| CW
+    CW -.->|"alarm: errors / slow p95"| SNS
+    SNS -.->|"email alert"| Operator
 ```
+
+**How to read it:** A visitor's request flows ①→④ — API Gateway (the public HTTPS front
+door) hands the request to Lambda, Lambda returns JSON, API Gateway returns the HTTP
+response. Separately (dotted lines), every invocation emits **metrics and logs** to
+CloudWatch; when an alarm trips, **SNS** emails **you, the operator** (a different person
+from the visitor). **CloudTrail** quietly records control-plane actions — deploys and config
+changes — to S3 for audit.
 
 There is no network to design. API Gateway is the public, HTTPS endpoint; it invokes Lambda
 directly. Lambda scales from **zero** to thousands of concurrent executions with no Auto

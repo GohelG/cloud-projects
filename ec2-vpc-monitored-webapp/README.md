@@ -25,7 +25,7 @@ By the end you will understand:
 - How to alarm on high CPU and get an **SNS email** — and trigger scaling from the same signal
 - How **CloudTrail** records who did what, when, and from where
 - How to automate the entire monitoring stack with **Boto3**
-- How to ship code with a **GitHub Actions → OIDC → SSM** pipeline (no keys, no SSH)
+- How to ship code with a **GitHub Actions → OIDC → SSM** pipeline (no keys, no SSH) — where **OIDC (OpenID Connect)** lets GitHub authenticate to AWS with short-lived tokens instead of stored keys
 
 ---
 
