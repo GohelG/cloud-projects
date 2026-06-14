@@ -90,6 +90,52 @@ re-check that `publish-version` ran **after** `update-function-configuration` fi
 
 ---
 
+### `/version` (or any route) **always** returns the new version, ignoring the weighted alias
+
+**Cause:** That method's integration invokes the **unqualified function** ARN
+(`…:function:quotes-api`) instead of the alias ARN
+(`…:function:quotes-api:${stageVariables.lambdaAlias}`). The unqualified ARN runs **`$LATEST`**,
+and `$LATEST` carries the env var you set during the deploy (`APP_VERSION=2.0.0`). So that route
+bypasses the `live` alias and its `AdditionalVersionWeights` entirely — 100% new version, every
+request — while other routes that *do* target the alias still show the weighted split. (Classic
+tell: `GET /quotes` returns `1.0.0` but `GET /version` returns `2.0.0`.) Easy to introduce by
+wiring up a method (often added later, like `/version` or `/quotes/random`) without the
+stage-variable qualifier.
+
+**Fix:** Repoint **every** method's integration at the alias, then redeploy. Check what each one
+targets:
+
+```bash
+REGION=us-east-1
+API_ID=<your-api-id>
+for RID in $(aws apigateway get-resources --rest-api-id $API_ID --region $REGION --query 'items[].id' --output text); do
+  for M in GET POST; do
+    aws apigateway get-integration --rest-api-id $API_ID --resource-id $RID --http-method $M \
+      --region $REGION --query 'uri' --output text 2>/dev/null
+  done
+done
+# A correct URI ends in  :quotes-api:${stageVariables.lambdaAlias}/invocations
+# A broken one ends in    :quotes-api/invocations   (= $LATEST)
+```
+
+Patch each broken method (the `${…}` braces break CLI shorthand, so pass JSON via a file):
+
+```bash
+cat > /tmp/patch.json <<'EOF'
+[{"op":"replace","path":"/uri","value":"arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:quotes-api:${stageVariables.lambdaAlias}/invocations"}]
+EOF
+aws apigateway update-integration --rest-api-id $API_ID --resource-id <RID> \
+  --http-method <GET|POST> --region $REGION --patch-operations file:///tmp/patch.json
+# then redeploy so the change goes live:
+aws apigateway create-deployment --rest-api-id $API_ID --stage-name prod --region $REGION
+```
+
+> Confirm with a large sample — `for i in $(seq 1 200)`. At low request volume Lambda applies
+> weighted routing at **execution-environment** granularity, so a 60-request probe can read
+> wildly off the configured weight; it converges to ~90/10 as volume grows.
+
+---
+
 ### Canary tab: "promote" did nothing visible
 
 **Cause:** Promote copies the **canary stage variable overrides** into the base stage, but if
