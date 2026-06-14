@@ -37,6 +37,19 @@ Work through these four projects in order. Each builds on the previous.
 | 3 | [Lambda Layers](./lambda-layers/README.md) | Lambda, IAM, CloudWatch | Package third-party libraries (`requests`, `pandas`) as reusable Lambda Layers; attach multiple layers to one function |
 | 4 | [Lambda Troubleshooting & Boto3 Automation](./lambda-troubleshooting-monitoring/README.md) | Lambda, S3, EC2, SQS, CloudWatch, Log Insights | Debug 8 failure scenarios, master Log Insights queries, configure DLQs, and automate EC2/S3/SQS with Boto3 |
 
+### Lambda Automation Series (Beginner)
+
+Three short, beginner-friendly projects that all share one idea: **run Lambda on a schedule
+with Amazon EventBridge** (a serverless cron job). Start with Project 1 — it teaches the
+scheduling pattern the other two reuse to automate real chores. Each is fully hands-on with a
+`DRY_RUN` safety switch where it matters.
+
+| # | Project | Services | Description |
+|---|---------|----------|-------------|
+| 1 | [Lambda on a Schedule with EventBridge](./lambda-eventbridge-scheduled/README.md) | Lambda, EventBridge, CloudWatch, SNS | Learn the scheduling pattern itself: an EventBridge `rate`/`cron` rule fires a heartbeat Lambda that logs and (optionally) emails you via SNS; add a missed-run alarm |
+| 2 | [Scheduled EC2 Start/Stop](./lambda-ec2-start-stop-scheduler/README.md) | Lambda, EventBridge, EC2, IAM, CloudWatch | Save money: two schedules pass `{"action":"stop"}` / `{"action":"start"}` to one tag-driven Lambda that powers idle EC2 off overnight — with a tag-gated IAM policy and `DRY_RUN` |
+| 3 | [Scheduled S3 Housekeeping](./lambda-s3-housekeeping/README.md) | Lambda, EventBridge, S3, IAM, CloudWatch | Keep a bucket tidy: a daily Lambda archives (or deletes) objects older than a retention window using a paginator, with `archive`-before-`delete` safety and a Lambda-vs-Lifecycle discussion |
+
 ### ECS & Fargate Series (Beginner → Advanced)
 
 Work through these two projects in order. Project 1 covers fundamentals; Project 2 builds a production-grade deployment.

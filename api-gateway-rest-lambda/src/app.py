@@ -9,11 +9,12 @@ like `{statusCode, headers, body}`. This handler does its own path + method
 routing, exactly the kind of code a proxy integration carries.
 
 Endpoints:
-  GET  /quotes        -> list all quotes
-  GET  /quotes/{id}   -> one quote by id
-  POST /quotes        -> add a quote (body: {"text": "...", "author": "..."})
-  GET  /version       -> reports APP_VERSION (so you can SEE which version a
-                         canary/blue-green deploy is serving)
+  GET  /quotes         -> list all quotes
+  GET  /quotes/random  -> a random quote (added in version 2)
+  GET  /quotes/{id}    -> one quote by id
+  POST /quotes         -> add a quote (body: {"text": "...", "author": "..."})
+  GET  /version        -> reports APP_VERSION (so you can SEE which version a
+                          canary/blue-green deploy is serving)
 
 State note: quotes live in memory and reset on every cold start. That is fine —
 this project teaches API Gateway deployment, not persistence. Project 2
@@ -21,6 +22,7 @@ this project teaches API Gateway deployment, not persistence. Project 2
 """
 import os
 import json
+import random
 
 APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
 
@@ -62,6 +64,12 @@ def list_quotes():
     return _response(200, {"version": APP_VERSION, "count": len(QUOTES), "quotes": QUOTES})
 
 
+def random_quote():
+    if not QUOTES:
+        return _response(404, {"error": "no quotes available"})
+    return _response(200, random.choice(QUOTES))
+
+
 def get_quote(event):
     qid = _quote_id(event)
     for q in QUOTES:
@@ -101,7 +109,10 @@ def handler(event, context):
         return version()
 
     if path.startswith("/quotes"):
-        if method == "GET" and (event.get("pathParameters") or {}).get("id"):
+        qid_param = (event.get("pathParameters") or {}).get("id")
+        if method == "GET" and (path.rstrip("/").endswith("/random") or qid_param == "random"):
+            return random_quote()
+        if method == "GET" and qid_param:
             return get_quote(event)
         if method == "GET":
             return list_quotes()

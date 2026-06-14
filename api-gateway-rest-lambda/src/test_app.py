@@ -34,6 +34,12 @@ def main():
     body = json.loads(r["body"])
     total += 1; passed += check("has 2 quotes", body["count"], 2)
 
+    print("random_quote (v2 feature)")
+    r = app.handler(event("GET", "/quotes/random", {"id": "random"}), None)
+    total += 1; passed += check("status", r["statusCode"], 200)
+    rq = json.loads(r["body"])
+    total += 1; passed += check("returns a real quote id", rq["id"] in {q["id"] for q in app.QUOTES}, True)
+
     print("get_quote (found)")
     r = app.handler(event("GET", "/quotes/1", {"id": "1"}), None)
     total += 1; passed += check("status", r["statusCode"], 200)
