@@ -135,17 +135,47 @@ aws apigateway create-deployment --rest-api-id $API_ID \
 
 ## 4.4 Test the Live API
 
+Set `API` to **your** invoke URL (from 4.3 — it must end in `/prod`, with no trailing slash):
+
 ```bash
-API=https://abc123.execute-api.us-east-1.amazonaws.com/prod
-curl -s $API/quotes              # the two quotes, "version":"1.0.0"
-curl -s $API/quotes/1            # one quote
-curl -s "$API/version"           # {"version":"1.0.0"}
-curl -s -X POST $API/quotes -d '{"text":"Make it work, then make it right."}'
+API=https://abc123.execute-api.us-east-1.amazonaws.com/prod   # <-- replace with yours
+
+curl $API/quotes ; echo            # the two quotes, "version":"1.0.0"
+curl $API/quotes/1 ; echo          # one quote
+curl "$API/version" ; echo         # {"version":"1.0.0"}
+
+# POST — send JSON and SAY it's JSON. -d alone sends form-encoding.
+curl -X POST "$API/quotes" \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Make it work, then make it right.","author":"Kent Beck"}' ; echo
 ```
+
+Two things that make these reliable:
+
+- **No `-s`.** Silent mode swallows TLS/connection errors *and* HTTP error bodies, so a failed
+  request looks like "nothing happened." Run them loud while testing; add `-s` only once
+  they're known-good.
+- **`; echo`** prints a newline after each response. The handler returns JSON with no trailing
+  `\n`, so without this the body merges into your next shell prompt and looks empty.
 
 `GET /version` returning `1.0.0` confirms the stage → variable → `live` alias → version 1
 chain works end to end. Keep that command handy — it's your "which version is serving?"
 probe for the next three steps.
+
+### If a command prints nothing or an error
+
+Make the status code visible — this turns a silent failure into a diagnosis:
+
+```bash
+curl -i "$API/version"             # -i shows the HTTP status line + headers
+```
+
+| What you see | Meaning | Fix |
+|---|---|---|
+| `{"message":"Missing Authentication Token"}` / `403` | Path or stage wrong — no route matched | Confirm the URL ends `/prod` **and** has the resource (`/version`, `/quotes`). See [troubleshooting.md](../troubleshooting.md). |
+| `{"message":"Internal server error"}` / `500` | Route matched but invoking the alias failed | Add the `live` alias invoke permission (4.2). |
+| `curl: (6) Could not resolve host` | `API` unset or has a typo | Re-check the `API=` line; it must be one line, no spaces around `=`. |
+| Totally empty, exit code 0 | You used `-s` and hit an error | Drop `-s`, or add `-i` as above. |
 
 ---
 
