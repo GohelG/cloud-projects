@@ -43,14 +43,54 @@ We want the integration URI to read the alias name from a **stage variable** nam
 For **each** method you created (GET/POST `/quotes`, GET `/quotes/{id}`, GET `/version`):
 
 1. Select the method → **Integration request** → **Edit**.
-2. In the **Lambda function** box, set it to use the stage variable and alias:
+2. Leave **Integration type** = *Lambda function* and keep **Lambda proxy integration** *on*.
+3. In the **Lambda function** box, type the **full function ARN** with the stage variable as
+   the qualifier (alias). The box is a typeahead — it will *not* offer a dropdown match for a
+   value containing `${…}`, and that's expected. Ignore the "no results" hint and just leave
+   your typed text in place, then **Save**.
+
+   Use the ARN form (replace `<ACCOUNT_ID>` with your 12-digit account number):
 
    ```
-   quotes-api:${stageVariables.lambdaAlias}
+   arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:quotes-api:${stageVariables.lambdaAlias}
    ```
 
-   (In the console you can type `quotes-api:${stageVariables.lambdaAlias}` as the function
-   name.) Save.
+   Why the full ARN and not just `quotes-api:${stageVariables.lambdaAlias}`? The short
+   `name:qualifier` form is what the *old* console accepted. The current console resolves the
+   field by ARN, so a bare name plus a stage-variable qualifier often fails to save or silently
+   drops the qualifier. The full ARN always works. Concretely, with account `123456789012`:
+
+   ```
+   arn:aws:lambda:us-east-1:123456789012:function:quotes-api:${stageVariables.lambdaAlias}
+   ```
+
+4. When you save, the console pops a **"Add permission to Lambda function"** dialog. It can
+   only add permission for the *literal* text — which contains `${stageVariables.lambdaAlias}`,
+   not a real alias — so click **Cancel** (or let it fail). You'll grant the real permission
+   explicitly in the CLI block below.
+
+**CLI alternative** (sets the integration URI directly — handy if the console fights you).
+The integration URI is the Lambda ARN *embedded inside* an API Gateway invocation path, and
+the embedded ARN carries the stage variable:
+
+```bash
+REGION=us-east-1
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+API_ID=<your-api-id>
+
+URI="arn:aws:apigateway:$REGION:lambda:path/2015-03-31/functions/arn:aws:lambda:$REGION:$ACCOUNT_ID:function:quotes-api:\${stageVariables.lambdaAlias}/invocations"
+
+# Run for EACH method+resource. Example: GET on the /version resource.
+# Get RESOURCE_ID from: aws apigateway get-resources --rest-api-id $API_ID --region $REGION
+aws apigateway put-integration \
+  --rest-api-id $API_ID --resource-id <RESOURCE_ID> --http-method GET \
+  --type AWS_PROXY --integration-http-method POST \
+  --uri "$URI" --region $REGION
+```
+
+> Note the `\${stageVariables...}` — the backslash stops *your shell* from expanding it, so
+> the literal `${stageVariables.lambdaAlias}` reaches API Gateway, which substitutes it at
+> request time.
 
 Because the function name now contains a stage variable, you must grant API Gateway
 permission to invoke the **alias** explicitly (the console's auto-permission only covered the
@@ -112,7 +152,7 @@ probe for the next three steps.
 ## Checkpoint
 
 - [ ] Lambda **version 1** is published and alias **`live`** points to it
-- [ ] Every method's integration uses `quotes-api:${stageVariables.lambdaAlias}`
+- [ ] Every method's integration URI ends with `...:function:quotes-api:${stageVariables.lambdaAlias}` (full ARN form)
 - [ ] API Gateway has `lambda:InvokeFunction` permission on the **`live`** alias
 - [ ] Stage **`prod`** exists with stage variable `lambdaAlias=live`
 - [ ] `curl $API/version` returns `{"version":"1.0.0"}`

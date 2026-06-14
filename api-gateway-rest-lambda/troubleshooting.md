@@ -7,8 +7,10 @@ Format: **Error → Cause → Fix.**
 ### `500 Internal server error` (and CloudWatch shows no Lambda invocation)
 
 **Cause:** API Gateway tried to invoke a Lambda **alias** it has no permission for. When you
-switched the integration to `quotes-api:${stageVariables.lambdaAlias}` (Step 4), the console's
-auto-added permission only covered the bare function — not each alias.
+switched the integration to the stage-variable ARN
+`arn:aws:lambda:us-east-1:<ACCOUNT_ID>:function:quotes-api:${stageVariables.lambdaAlias}`
+(Step 4), the console either couldn't auto-add a permission at all (the qualifier is a
+`${…}` placeholder, not a real alias) or covered only the bare function — never each alias.
 
 **Fix:** add an invoke permission for *every* alias the stage variable can resolve to
 (`live`, `canary`, `blue`, `green`):
