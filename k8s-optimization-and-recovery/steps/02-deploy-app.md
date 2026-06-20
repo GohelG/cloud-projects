@@ -29,8 +29,18 @@ kind load docker-image webapp:1.0 --name optrec
 minikube image load webapp:1.0 --profile optrec
 ```
 
+### Docker Desktop built-in Kubernetes — nothing to load
+
+Docker Desktop wires its Docker image store directly into its bundled Kubernetes node, so an image
+you just built with `docker build` is **already visible to the cluster**. There is no load step —
+**skip straight to 2.3**. (The `kind load` command does not apply here: that cluster is managed by
+Docker Desktop, not the `kind` CLI, so there's no `optrec` cluster to load into.)
+
 The Deployment uses `imagePullPolicy: IfNotPresent` so the cluster uses this loaded image instead
 of trying to pull `webapp:1.0` from a registry.
+
+> **If pods show `ImagePullBackOff` / `ErrImageNeverPull`:** change `imagePullPolicy` in
+> `k8s/deployment.yaml` to `Never` (use only the local image, never pull) and re-apply.
 
 ---
 
@@ -65,9 +75,15 @@ In another terminal:
 
 ```bash
 curl -s localhost:8080/         # {"message":"hello...","pod":"webapp-xxxx"}
-curl -s localhost:8080/         # run a few times — the pod name changes (load spreads)
+curl -s localhost:8080/         # run a few times — note the "pod" field
 curl -s localhost:8080/data     # reads the ConfigMap-mounted message.txt
 ```
+
+> **Heads-up:** with `kubectl port-forward` the `pod` value **stays the same** across calls —
+> port-forward pins to one backing pod, it doesn't load-balance across the two. That's expected.
+> To actually see requests spread over both pods, hit the Service from *inside* the cluster
+> instead, e.g. `kubectl run -n webapp tmp --rm -it --image=curlimages/curl --restart=Never -- \
+> sh -c 'for i in 1 2 3 4 5 6; do curl -s webapp/; echo; done'` — now the `pod` field rotates.
 
 The `/data` value (`v1 — this value was captured by the Velero backup`) comes from the ConfigMap.
 Remember it — in Step 6 you'll delete everything and prove Velero brings it back.

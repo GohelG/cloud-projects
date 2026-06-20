@@ -24,6 +24,27 @@ minikube start --cpus=2 --memory=4096 --profile optrec
 kubectl config use-context optrec
 ```
 
+### Option C — Docker Desktop built-in Kubernetes (Windows/WSL or macOS)
+
+If you already run Docker Desktop, you can use its bundled single-node cluster instead of
+installing kind/minikube. It uses kind technology under the hood (the node is named
+`desktop-control-plane`), but **Docker Desktop creates and manages it — you don't run the `kind`
+CLI** (the `kind load` step in Step 2 won't apply; see the note there).
+
+1. Docker Desktop → **Settings → Kubernetes → Enable Kubernetes** → *Apply & Restart*.
+2. On **Windows/WSL**, also enable **Settings → Resources → WSL Integration** for your distro,
+   or the `docker`/`kubectl` CLIs in WSL can't reach the engine (`Cannot connect to the Docker
+   daemon`).
+3. Point kubectl at it:
+
+```bash
+kubectl config use-context docker-desktop
+```
+
+> **Note:** this cluster is **separate** from any `kind create cluster --name optrec` cluster.
+> Throughout this project, wherever a command references the `optrec`/`kind-optrec` cluster,
+> use the `docker-desktop` context instead.
+
 Confirm the node is **Ready**:
 
 ```bash
@@ -42,12 +63,12 @@ kubectl get nodes
 minikube addons enable metrics-server --profile optrec
 ```
 
-### kind — apply the manifest (with a local-cluster TLS flag)
+### kind or Docker Desktop — apply the manifest (with a local-cluster TLS flag)
 
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-# kind nodes use self-signed kubelet certs; tell metrics-server to accept them (LAB ONLY):
+# kind & Docker Desktop nodes use self-signed kubelet certs; tell metrics-server to accept them (LAB ONLY):
 kubectl patch -n kube-system deployment metrics-server --type=json \
   -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
 ```
@@ -78,7 +99,7 @@ wait another minute (it scrapes on an interval) — see [troubleshooting](../tro
 - [ ] `kubectl get nodes` shows one **Ready** node
 - [ ] `metrics-server` deployment is **1/1**
 - [ ] `kubectl top nodes` returns CPU/memory numbers
-- [ ] You know which tool you chose (kind vs minikube) — it affects how you load the image in Step 2
+- [ ] You know which tool you chose (kind / minikube / Docker Desktop) — it affects how you load the image in Step 2
 
 ---
 

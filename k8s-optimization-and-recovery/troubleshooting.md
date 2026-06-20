@@ -4,6 +4,48 @@ Error → Cause → Fix.
 
 ---
 
+## `docker build` fails: "Cannot connect to the Docker daemon" (Docker Desktop + WSL)
+
+**Symptom:** in your WSL distro, `docker ps` / `docker build` return
+`Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?`
+— **even though** `kubectl` reaches the `docker-desktop` cluster fine and Docker Desktop is open.
+
+**Cause:** kubectl talks to the cluster's API server over a TCP port, so it works regardless of the
+Docker socket. The Docker **engine** is reached through a separate per-distro relay that Docker
+Desktop only wires up when **WSL Integration is enabled for that distro**. If it's off (or the
+relay went stale after a restart), `/var/run/docker.sock` is just a leftover file with nothing
+serving it. You may even be in the `docker` group and still get this — group membership doesn't
+help if nothing is listening.
+
+**Confirm the diagnosis:**
+
+```bash
+ls -la /var/run/docker.sock                              # file exists but...
+docker ps                                                # ...Cannot connect
+ls /mnt/wsl/docker-desktop/shared-sockets/guest-services # docker.proxy.sock present = Desktop is up
+```
+
+If the engine were truly down, the cluster would be unreachable too. So a working `kubectl` + a
+failing `docker` almost always means **integration not wired**, not "Docker is off."
+
+**Fix:** Docker Desktop → **Settings → Resources → WSL Integration** → toggle **your distro on**
+(e.g. `Ubuntu-24.04`) → **Apply & Restart**. Then, in a **new** WSL shell:
+
+```bash
+docker ps        # should list containers, no error
+```
+
+**Still failing after that?** Fully quit Docker Desktop (tray → Quit), start it again, wait for the
+whale icon to settle, then reopen the shell. As a last resort, in PowerShell: `wsl --shutdown`, then
+start Docker Desktop — this rebuilds the relay sockets.
+
+> Don't try to point `DOCKER_HOST` at
+> `/mnt/wsl/docker-desktop/shared-sockets/guest-services/docker.proxy.sock` to dodge this — that
+> socket is root-owned and refuses non-root connections (`permission denied`). Enabling the
+> integration is the supported path; it's what creates a usable `/var/run/docker.sock`.
+
+---
+
 ## `kubectl top` says "Metrics API not available"
 
 **Symptom:** `error: Metrics API not available`, and the HPA shows `<unknown>/50%`.
@@ -28,9 +70,38 @@ Error → Cause → Fix.
 **Fix:** Load the image into the cluster after building (Step 2.2):
 - kind: `kind load docker-image webapp:1.0 --name optrec`
 - minikube: `minikube image load webapp:1.0 --profile optrec`
+- **Docker Desktop built-in Kubernetes:** no load command — its node shares the Docker image store,
+  so a freshly built `webapp:1.0` is already visible. If you still get `ImagePullBackOff` or
+  `ErrImageNeverPull`, the node hasn't picked up the local image: set `imagePullPolicy: Never` in
+  `k8s/deployment.yaml` and re-apply, and make sure you actually built it (`docker images | grep
+  webapp`) on the **same** Docker engine Kubernetes uses (the `docker-desktop` context).
 
 The Deployment uses `imagePullPolicy: IfNotPresent` so it won't try a registry once the image is
-loaded. Rebuilt the image? **Reload it** — the cluster keeps the old copy otherwise.
+loaded. Rebuilt the image? **Reload it** — the cluster keeps the old copy otherwise (Docker Desktop
+sees the new image immediately, but a running Deployment still needs a `kubectl rollout restart`).
+
+---
+
+## `curl localhost:8080/` always returns the same pod name
+
+**Symptom:** through `kubectl port-forward -n webapp svc/webapp 8080:80`, repeated `curl localhost:8080/`
+calls always report the **same** `pod`, even though two pods are Running — so it looks like load
+isn't spreading.
+
+**Cause:** This is expected. `kubectl port-forward` to a Service resolves it to **one** backing pod
+at connection time and tunnels every request straight to that pod. It does **not** load-balance —
+the Service's round-robin (kube-proxy) only applies to traffic that actually goes through the
+ClusterIP, which port-forward bypasses.
+
+**Fix (to see load spread):** send traffic through the Service from inside the cluster:
+
+```bash
+kubectl run -n webapp tmp --rm -it --image=curlimages/curl --restart=Never -- \
+  sh -c 'for i in $(seq 6); do curl -s webapp/; echo; done'
+```
+
+The `pod` field now rotates between both pods. (Restarting `port-forward` may also land you on the
+other pod, but it still won't alternate within a single session.)
 
 ---
 
