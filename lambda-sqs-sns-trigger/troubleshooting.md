@@ -125,6 +125,31 @@ Default timeout is 3 seconds. If downstream SNS calls are slow (e.g. cold start 
 
 ---
 
+## DLQ never receives failed messages — they are silently deleted
+
+**Symptom:** Sending a malformed message produces `Failed to process message ...` in the Lambda logs, but the message **never** appears in `OrderDLQ`. CloudWatch shows the failure logged only **once** (not retried), and `OrderQueue` ends up empty.
+
+**Cause:** The handler in this project **catches every exception** and signals failure only by *returning* a `batchItemFailures` response — it never re-raises. That return value is honored **only when "Report batch item failures" is enabled** on the event source mapping. If it is **disabled**, the event source mapping ignores the response, sees an invocation that completed without throwing, treats the whole batch as a success, and **deletes the message**. The receive count never increments, so `maxReceiveCount` is never reached and the message never reaches the DLQ.
+
+This is the opposite symptom from the entry above: there the *whole batch* is retried; here the failed message is *silently dropped* with no retry at all.
+
+**Fix:**
+
+1. Confirm the setting is on:
+   - Lambda → `OrderProcessor` → **Configuration** → **Triggers** → click the SQS trigger → **Report batch item failures** must be checked.
+   - CLI: `aws lambda list-event-source-mappings --function-name OrderProcessor --query 'EventSourceMappings[].FunctionResponseTypes'` should return `[["ReportBatchItemFailures"]]`, not `[[]]`.
+2. If it is off, enable it:
+   ```bash
+   aws lambda update-event-source-mapping \
+     --uuid <event-source-mapping-uuid> \
+     --function-response-types ReportBatchItemFailures
+   ```
+3. Re-test with a malformed message and wait ~90 seconds (3 retries × 30s visibility timeout) before polling `OrderDLQ`.
+
+> **Alternative design:** if you intentionally do **not** enable batch-item-failure reporting, the handler must `raise` on failure instead of returning `batchItemFailures`. A raised exception fails the invocation, which prevents SQS from deleting the message so it can be retried and eventually moved to the DLQ. Returning a failure response and disabling the flag are mutually incompatible — pick one.
+
+---
+
 ## Handler not found error
 
 - Lambda → `OrderProcessor` → Configuration → General configuration
